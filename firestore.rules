@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function activeUser() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
+    }
+
+    function isAdmin() {
+      return activeUser()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function validRecipeImage() {
+      return ('imageBytes' in request.resource.data
+          && request.resource.data.imageBytes is bytes
+          && request.resource.data.imageBytes.size() <= 716800)
+        || (!('imageBytes' in request.resource.data)
+          && 'imageUrl' in request.resource.data);
+    }
+
+    match /users/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid)
+        || (isAdmin() && resource.data.ownerAdminUid == request.auth.uid);
+      allow create: if (isAdmin()
+          && request.resource.data.ownerAdminUid == request.auth.uid)
+        || (signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly([
+            'uid', 'nombre', 'apellidos', 'email', 'role', 'status',
+            'ownerAdminUid', 'createdAt'
+          ])
+          && request.resource.data.uid == uid
+          && request.resource.data.role == 'user'
+          && request.resource.data.status == 'active'
+          && request.resource.data.ownerAdminUid
+            == get(/databases/$(database)/documents/settings/admin).data.ownerAdminUid
+          && request.resource.data.email == request.auth.token.email);
+      allow update: if (isAdmin()
+          && resource.data.ownerAdminUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status'])
+          && request.resource.data.status in ['active', 'inactive'])
+        || (activeUser()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['nombre', 'apellidos']));
+      allow delete: if isAdmin()
+        && resource.data.ownerAdminUid == request.auth.uid;
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedIn() && settingId == 'admin';
+    }
+
+    match /categories/{categoryId} {
+      allow read: if activeUser();
+      allow write: if isAdmin();
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if isAdmin()
+        || (activeUser() && resource.data.published == true);
+      allow create: if isAdmin() && validRecipeImage();
+      allow update: if isAdmin()
+        && (validRecipeImage()
+          || !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['imageBytes', 'imageUrl']));
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid}/favorites/{recipeId} {
+      allow read, delete: if activeUser() && request.auth.uid == uid;
+      allow create: if activeUser()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.keys().hasAll(['createdAt'])
+        && request.resource.data.createdAt is timestamp
+        && exists(/databases/$(database)/documents/recipes/$(recipeId))
+        && get(/databases/$(database)/documents/recipes/$(recipeId)).data.published == true;
+      allow update: if false;
+    }
+  }
+}
