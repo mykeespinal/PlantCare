@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   AuthService._();
@@ -18,12 +19,28 @@ class AuthService {
   }
 
   Future<void> signInWithGoogle() async {
-    final provider = GoogleAuthProvider()
-      ..addScope('email')
-      ..setCustomParameters({'prompt': 'select_account'});
-    final credential = kIsWeb
-        ? await _auth.signInWithPopup(provider)
-        : await _auth.signInWithProvider(provider);
+    UserCredential credential;
+    String? googlePhotoUrl;
+
+    if (kIsWeb) {
+      final provider = GoogleAuthProvider()
+        ..addScope('email')
+        ..setCustomParameters({'prompt': 'select_account'});
+      credential = await _auth.signInWithPopup(provider);
+    } else {
+      final googleUser = await GoogleSignIn.instance.authenticate(
+        scopeHint: const ['email', 'profile'],
+      );
+      googlePhotoUrl = googleUser.photoUrl;
+      final idToken = googleUser.authentication.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw StateError('Google no proporcionó una credencial válida.');
+      }
+      credential = await _auth.signInWithCredential(
+        GoogleAuthProvider.credential(idToken: idToken),
+      );
+    }
+
     final user = credential.user;
     if (user == null) {
       throw StateError('Google no devolvió una cuenta autenticada.');
@@ -36,7 +53,38 @@ class AuthService {
 
     final profileRef = _db.collection('users').doc(user.uid);
     final profile = await profileRef.get();
-    if (profile.exists) return;
+    if (profile.exists) {
+      final profileData = profile.data();
+      if (profileData?['status'] != 'active') {
+        await _auth.signOut();
+        if (!kIsWeb) await GoogleSignIn.instance.signOut();
+        throw StateError(
+          'Esta cuenta está inactiva. Contacta a administración.',
+        );
+      }
+
+      final currentName = (profileData?['nombre'] as String? ?? '').trim();
+      final currentLastName =
+          (profileData?['apellidos'] as String? ?? '').trim();
+      final photoUrl = googlePhotoUrl ?? user.photoURL;
+      final updates = <String, dynamic>{
+        'email': email,
+        'photoURL': photoUrl,
+        'authProvider': 'google.com',
+      };
+      if (currentName.isEmpty || currentLastName.isEmpty) {
+        final displayName = user.displayName?.trim();
+        if (displayName != null && displayName.isNotEmpty) {
+          final nameParts = displayName.split(RegExp(r'\s+'));
+          if (currentName.isEmpty) updates['nombre'] = nameParts.first;
+          if (currentLastName.isEmpty) {
+            updates['apellidos'] = nameParts.skip(1).join(' ');
+          }
+        }
+      }
+      await profileRef.set(updates, SetOptions(merge: true));
+      return;
+    }
 
     final ownerAdminUid = await _defaultAdminUid();
     final displayName = user.displayName?.trim();
@@ -49,6 +97,8 @@ class AuthService {
       'nombre': nameParts.first,
       'apellidos': nameParts.skip(1).join(' '),
       'email': email,
+      'photoURL': googlePhotoUrl ?? user.photoURL,
+      'authProvider': 'google.com',
       'role': 'user',
       'status': 'active',
       'ownerAdminUid': ownerAdminUid,
@@ -146,5 +196,8 @@ class AuthService {
     return ownerAdminUid;
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    await _auth.signOut();
+    if (!kIsWeb) await GoogleSignIn.instance.signOut();
+  }
 }

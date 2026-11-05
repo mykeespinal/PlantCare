@@ -10,18 +10,17 @@ class RecipePdfService {
     required String categoryName,
   }) async {
     final document = pw.Document();
+    final imageBytes = recipe.imageBytes;
     const forest = PdfColor.fromInt(0xFF245B45);
     const paleSage = PdfColor.fromInt(0xFFE7F0E5);
     document.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(42),
+        margin: const pw.EdgeInsets.all(36),
         header: (_) => pw.Container(
           padding: const pw.EdgeInsets.only(bottom: 10),
           decoration: const pw.BoxDecoration(
-            border: pw.Border(
-              bottom: pw.BorderSide(color: paleSage, width: 2),
-            ),
+            border: pw.Border(bottom: pw.BorderSide(color: paleSage, width: 2)),
           ),
           child: pw.Row(
             children: [
@@ -37,7 +36,10 @@ class RecipePdfService {
               pw.Spacer(),
               pw.Text(
                 categoryName,
-                style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                style: const pw.TextStyle(
+                  fontSize: 9,
+                  color: PdfColors.grey700,
+                ),
               ),
             ],
           ),
@@ -56,16 +58,28 @@ class RecipePdfService {
             recipe.title,
             style: pw.TextStyle(
               color: forest,
-              fontSize: 25,
+              fontSize: 27,
               fontWeight: pw.FontWeight.bold,
             ),
           ),
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 10),
           pw.Text(
             'Categoría: $categoryName'
             '${recipe.plantName.isEmpty ? '' : '  ·  Planta: ${recipe.plantName}'}',
-            style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+            style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
           ),
+          if (imageBytes != null && imageBytes.isNotEmpty) ...[
+            pw.SizedBox(height: 18),
+            pw.Center(
+              child: pw.SizedBox(
+                height: 180,
+                child: pw.Image(
+                  pw.MemoryImage(imageBytes),
+                  fit: pw.BoxFit.contain,
+                ),
+              ),
+            ),
+          ],
           pw.SizedBox(height: 22),
           _section('Ingredientes', recipe.ingredients, forest, numbered: false),
           pw.SizedBox(height: 18),
@@ -90,7 +104,7 @@ class RecipePdfService {
                   ),
                 ),
                 pw.SizedBox(height: 8),
-                pw.Text(recipe.result, style: const pw.TextStyle(fontSize: 11)),
+                pw.Text(recipe.result, style: const pw.TextStyle(fontSize: 12)),
               ],
             ),
           ),
@@ -98,10 +112,7 @@ class RecipePdfService {
           pw.Text(
             'Aviso: contenido educativo. No sustituye la valoración, el '
             'diagnóstico ni las indicaciones de un profesional de salud.',
-            style: const pw.TextStyle(
-              fontSize: 9,
-              color: PdfColors.grey700,
-            ),
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
           ),
         ],
       ),
@@ -143,7 +154,7 @@ class RecipePdfService {
               pw.SizedBox(
                 width: 24,
                 child: pw.Text(
-                  numbered ? '${entry.key + 1}.' : '•',
+                  numbered ? '${entry.key + 1}.' : '-',
                   style: pw.TextStyle(
                     color: forest,
                     fontWeight: pw.FontWeight.bold,
@@ -151,7 +162,10 @@ class RecipePdfService {
                 ),
               ),
               pw.Expanded(
-                child: pw.Text(entry.value, style: const pw.TextStyle(fontSize: 11)),
+                child: pw.Text(
+                  entry.value,
+                  style: const pw.TextStyle(fontSize: 12),
+                ),
               ),
             ],
           ),
