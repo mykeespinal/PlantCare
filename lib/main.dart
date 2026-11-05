@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'firebase_options.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
@@ -17,6 +19,12 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    if (!kIsWeb) {
+      await GoogleSignIn.instance.initialize(
+        serverClientId:
+            '199001956949-fmt6j8i9dh0j4fgtq4ml7s46bu439mvf.apps.googleusercontent.com',
+      );
+    }
   } catch (error) {
     startupError = error;
   }

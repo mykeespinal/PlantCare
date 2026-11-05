@@ -54,7 +54,10 @@ storage.rules
      que aparece en `android/app/build.gradle.kts` (`com.example.plantas`).
      Añade las huellas SHA-1 y SHA-256 de las claves de depuración y publicación.
      En `android`, ejecuta `.\gradlew signingReport` para consultar las huellas
-     locales; registra también las de Play App Signing al publicar.
+     locales; registra también las de Play App Signing al publicar. Después,
+     descarga de nuevo `google-services.json` y comprueba que incluya clientes
+     OAuth para la app Android y un cliente web; sin esa configuración el acceso
+     nativo con Google no puede completarse.
    - En iOS, registra el Bundle ID real en Firebase y agrega el valor
      `REVERSED_CLIENT_ID` de `GoogleService-Info.plist` en Xcode > Runner >
      Info > URL Types.
@@ -114,9 +117,10 @@ storage.rules
   tarjeta. Favoritos explica su propósito y muestra las recetas guardadas en
   dos columnas. Las categorías se muestran en botones de ancho completo y cada
   una abre sus recetas publicadas. El detalle incluye ingredientes,
-  preparación, beneficio esperado y descarga de receta en PDF. El perfil de
-  usuarios y administradores muestra los datos de la cuenta y permite
-  actualizarlos en una pantalla separada.
+  preparación, beneficio esperado y descarga de receta en PDF con imagen cuando
+  está almacenada en Firestore. El perfil de usuarios y administradores muestra
+  los datos de la cuenta, la foto disponible de Google y el método de acceso,
+  y permite actualizar nombre y apellidos en una pantalla separada.
 - Diseño visual con tonos verdes y naturales, tarjetas adaptables y navegación
   coherente. Los favoritos son privados por usuario y se pueden abrir desde la
   sección Favoritos.

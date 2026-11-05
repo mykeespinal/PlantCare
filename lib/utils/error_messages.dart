@@ -1,6 +1,18 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 String friendlyError(Object error) {
+  if (error is GoogleSignInException) {
+    return switch (error.code) {
+      GoogleSignInExceptionCode.canceled =>
+        'Cancelaste el inicio de sesión con Google.',
+      GoogleSignInExceptionCode.clientConfigurationError =>
+        'Google Sign-In no está configurado correctamente. Verifica el client ID, SHA-1 y SHA-256.',
+      GoogleSignInExceptionCode.providerConfigurationError =>
+        'Google Sign-In no está disponible en este dispositivo.',
+      _ => error.description ?? 'No se pudo iniciar sesión con Google.',
+    };
+  }
   if (error is FirebaseAuthException) {
     return switch (error.code) {
       'email-already-in-use' => 'Ese correo ya está registrado.',
